@@ -1,0 +1,25 @@
+# Example benchmark sweep. Run with:
+#   uv run python -m chromatic_rl.bench --config bench/sweep.example.yaml
+out: bench.jsonl
+use_cache: true
+repeat: 1
+selectors: [none, min_degree_sum, max_degree_sum]
+runs:
+  - family: erdos_renyi
+    n: [8, 10, 12]
+    p: [0.5]
+    seeds: [0, 1, 2, 3, 4]
+  - family: random_regular
+    n: [10, 12]
+    d: [3]
+    seeds: [0, 1, 2]
+  - family: grid          # deterministic lattice. stand-in for planar (see CLAUDE.md)
+    rows: [3, 4]
+    cols: [3, 4]
+  - family: path
+    n: [10, 20]
+  - family: complete
+    n: [5, 6]
+  - family: random_tree    # seeds select distinct trees of given size
+    n: [10, 20]
+    seeds: [0, 1]

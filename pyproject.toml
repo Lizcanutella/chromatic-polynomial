@@ -1,0 +1,26 @@
+[build-system]
+requires = ["scikit-build-core>=0.10", "pybind11>=2.12"]
+build-backend = "scikit_build_core.build"
+
+[project]
+name = "chromatic_rl"
+version = "0.1.0"
+description = "Chromatic-polynomial engine with a pluggable (incl. learned) edge-selection heuristic, and a reduction visualizer"
+requires-python = ">=3.10"
+dependencies = ["numpy", "networkx", "pyyaml"]
+
+[project.optional-dependencies]
+maps = ["pillow", "scikit-image", "scipy"]
+geo = ["geopandas", "shapely"]
+
+[tool.scikit-build]
+wheel.packages = ["python/chromatic_rl"]
+cmake.version = ">=3.16"
+build-dir = "_skbuild"
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.0",
+]
+
+[tool.pytest.ini_options]

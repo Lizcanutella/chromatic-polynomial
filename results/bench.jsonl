@@ -1,0 +1,64 @@
+{"family": "path", "n": 20, "params": {}, "seed": null, "selector": "min_degree_sum", "nodes": 1, "branches": 0, "hits": 0, "misses": 0, "hit_rate": 0.0}
+{"family": "path", "n": 20, "params": {}, "seed": null, "selector": "max_degree_sum", "nodes": 1, "branches": 0, "hits": 0, "misses": 0, "hit_rate": 0.0}
+{"family": "path", "n": 20, "params": {}, "seed": null, "selector": "learned", "nodes": 1, "branches": 0, "hits": 0, "misses": 0, "hit_rate": 0.0}
+{"family": "path", "n": 20, "params": {}, "seed": null, "selector": "mlp", "nodes": 1, "branches": 0, "hits": 0, "misses": 0, "hit_rate": 0.0}
+{"family": "cycle", "n": 20, "params": {}, "seed": null, "selector": "min_degree_sum", "nodes": 1, "branches": 0, "hits": 0, "misses": 0, "hit_rate": 0.0}
+{"family": "cycle", "n": 20, "params": {}, "seed": null, "selector": "max_degree_sum", "nodes": 1, "branches": 0, "hits": 0, "misses": 0, "hit_rate": 0.0}
+{"family": "cycle", "n": 20, "params": {}, "seed": null, "selector": "learned", "nodes": 1, "branches": 0, "hits": 0, "misses": 0, "hit_rate": 0.0}
+{"family": "cycle", "n": 20, "params": {}, "seed": null, "selector": "mlp", "nodes": 1, "branches": 0, "hits": 0, "misses": 0, "hit_rate": 0.0}
+{"family": "complete", "n": 9, "params": {}, "seed": null, "selector": "min_degree_sum", "nodes": 1, "branches": 0, "hits": 0, "misses": 0, "hit_rate": 0.0}
+{"family": "complete", "n": 9, "params": {}, "seed": null, "selector": "max_degree_sum", "nodes": 1, "branches": 0, "hits": 0, "misses": 0, "hit_rate": 0.0}
+{"family": "complete", "n": 9, "params": {}, "seed": null, "selector": "learned", "nodes": 1, "branches": 0, "hits": 0, "misses": 0, "hit_rate": 0.0}
+{"family": "complete", "n": 9, "params": {}, "seed": null, "selector": "mlp", "nodes": 1, "branches": 0, "hits": 0, "misses": 0, "hit_rate": 0.0}
+{"family": "random_tree", "n": 16, "params": {}, "seed": 1, "selector": "min_degree_sum", "nodes": 1, "branches": 0, "hits": 0, "misses": 0, "hit_rate": 0.0}
+{"family": "random_tree", "n": 16, "params": {}, "seed": 1, "selector": "max_degree_sum", "nodes": 1, "branches": 0, "hits": 0, "misses": 0, "hit_rate": 0.0}
+{"family": "random_tree", "n": 16, "params": {}, "seed": 1, "selector": "learned", "nodes": 1, "branches": 0, "hits": 0, "misses": 0, "hit_rate": 0.0}
+{"family": "random_tree", "n": 16, "params": {}, "seed": 1, "selector": "mlp", "nodes": 1, "branches": 0, "hits": 0, "misses": 0, "hit_rate": 0.0}
+{"family": "random_tree", "n": 16, "params": {}, "seed": 2, "selector": "min_degree_sum", "nodes": 1, "branches": 0, "hits": 0, "misses": 0, "hit_rate": 0.0}
+{"family": "random_tree", "n": 16, "params": {}, "seed": 2, "selector": "max_degree_sum", "nodes": 1, "branches": 0, "hits": 0, "misses": 0, "hit_rate": 0.0}
+{"family": "random_tree", "n": 16, "params": {}, "seed": 2, "selector": "learned", "nodes": 1, "branches": 0, "hits": 0, "misses": 0, "hit_rate": 0.0}
+{"family": "random_tree", "n": 16, "params": {}, "seed": 2, "selector": "mlp", "nodes": 1, "branches": 0, "hits": 0, "misses": 0, "hit_rate": 0.0}
+{"family": "grid", "n": 16, "params": {"rows": 4, "cols": 4}, "seed": null, "selector": "min_degree_sum", "nodes": 1214, "branches": 40, "hits": 21, "misses": 40, "hit_rate": 0.3442622950819672}
+{"family": "grid", "n": 16, "params": {"rows": 4, "cols": 4}, "seed": null, "selector": "max_degree_sum", "nodes": 622, "branches": 62, "hits": 27, "misses": 62, "hit_rate": 0.30337078651685395}
+{"family": "grid", "n": 16, "params": {"rows": 4, "cols": 4}, "seed": null, "selector": "learned", "nodes": 995, "branches": 37, "hits": 19, "misses": 37, "hit_rate": 0.3392857142857143}
+{"family": "grid", "n": 16, "params": {"rows": 4, "cols": 4}, "seed": null, "selector": "mlp", "nodes": 646, "branches": 31, "hits": 7, "misses": 31, "hit_rate": 0.18421052631578946}
+{"family": "grid", "n": 20, "params": {"rows": 5, "cols": 4}, "seed": null, "selector": "min_degree_sum", "nodes": 2975, "branches": 156, "hits": 111, "misses": 156, "hit_rate": 0.4157303370786517}
+{"family": "grid", "n": 20, "params": {"rows": 5, "cols": 4}, "seed": null, "selector": "max_degree_sum", "nodes": 4604, "branches": 397, "hits": 261, "misses": 397, "hit_rate": 0.3966565349544073}
+{"family": "grid", "n": 20, "params": {"rows": 5, "cols": 4}, "seed": null, "selector": "learned", "nodes": 1941, "branches": 136, "hits": 88, "misses": 136, "hit_rate": 0.39285714285714285}
+{"family": "grid", "n": 20, "params": {"rows": 5, "cols": 4}, "seed": null, "selector": "mlp", "nodes": 1858, "branches": 89, "hits": 49, "misses": 89, "hit_rate": 0.35507246376811596}
+{"family": "grid", "n": 25, "params": {"rows": 5, "cols": 5}, "seed": null, "selector": "min_degree_sum", "nodes": 11744, "branches": 1016, "hits": 856, "misses": 1016, "hit_rate": 0.45726495726495725}
+{"family": "grid", "n": 25, "params": {"rows": 5, "cols": 5}, "seed": null, "selector": "max_degree_sum", "nodes": 59464, "branches": 6107, "hits": 5274, "misses": 6107, "hit_rate": 0.46340391881205517}
+{"family": "grid", "n": 25, "params": {"rows": 5, "cols": 5}, "seed": null, "selector": "learned", "nodes": 7805, "branches": 728, "hits": 597, "misses": 728, "hit_rate": 0.4505660377358491}
+{"family": "grid", "n": 25, "params": {"rows": 5, "cols": 5}, "seed": null, "selector": "mlp", "nodes": 13791, "branches": 608, "hits": 406, "misses": 608, "hit_rate": 0.40039447731755423}
+{"family": "erdos_renyi", "n": 10, "params": {"p": 0.3}, "seed": 1, "selector": "min_degree_sum", "nodes": 45, "branches": 2, "hits": 0, "misses": 2, "hit_rate": 0.0}
+{"family": "erdos_renyi", "n": 10, "params": {"p": 0.3}, "seed": 1, "selector": "max_degree_sum", "nodes": 27, "branches": 3, "hits": 0, "misses": 3, "hit_rate": 0.0}
+{"family": "erdos_renyi", "n": 10, "params": {"p": 0.3}, "seed": 1, "selector": "learned", "nodes": 19, "branches": 1, "hits": 0, "misses": 1, "hit_rate": 0.0}
+{"family": "erdos_renyi", "n": 10, "params": {"p": 0.3}, "seed": 1, "selector": "mlp", "nodes": 19, "branches": 1, "hits": 0, "misses": 1, "hit_rate": 0.0}
+{"family": "erdos_renyi", "n": 10, "params": {"p": 0.3}, "seed": 2, "selector": "min_degree_sum", "nodes": 10, "branches": 0, "hits": 0, "misses": 0, "hit_rate": 0.0}
+{"family": "erdos_renyi", "n": 10, "params": {"p": 0.3}, "seed": 2, "selector": "max_degree_sum", "nodes": 10, "branches": 0, "hits": 0, "misses": 0, "hit_rate": 0.0}
+{"family": "erdos_renyi", "n": 10, "params": {"p": 0.3}, "seed": 2, "selector": "learned", "nodes": 10, "branches": 0, "hits": 0, "misses": 0, "hit_rate": 0.0}
+{"family": "erdos_renyi", "n": 10, "params": {"p": 0.3}, "seed": 2, "selector": "mlp", "nodes": 10, "branches": 0, "hits": 0, "misses": 0, "hit_rate": 0.0}
+{"family": "erdos_renyi", "n": 10, "params": {"p": 0.5}, "seed": 1, "selector": "min_degree_sum", "nodes": 33, "branches": 1, "hits": 0, "misses": 1, "hit_rate": 0.0}
+{"family": "erdos_renyi", "n": 10, "params": {"p": 0.5}, "seed": 1, "selector": "max_degree_sum", "nodes": 31, "branches": 1, "hits": 0, "misses": 1, "hit_rate": 0.0}
+{"family": "erdos_renyi", "n": 10, "params": {"p": 0.5}, "seed": 1, "selector": "learned", "nodes": 33, "branches": 1, "hits": 0, "misses": 1, "hit_rate": 0.0}
+{"family": "erdos_renyi", "n": 10, "params": {"p": 0.5}, "seed": 1, "selector": "mlp", "nodes": 31, "branches": 1, "hits": 0, "misses": 1, "hit_rate": 0.0}
+{"family": "erdos_renyi", "n": 12, "params": {"p": 0.3}, "seed": 1, "selector": "min_degree_sum", "nodes": 64, "branches": 1, "hits": 0, "misses": 1, "hit_rate": 0.0}
+{"family": "erdos_renyi", "n": 12, "params": {"p": 0.3}, "seed": 1, "selector": "max_degree_sum", "nodes": 64, "branches": 3, "hits": 0, "misses": 3, "hit_rate": 0.0}
+{"family": "erdos_renyi", "n": 12, "params": {"p": 0.3}, "seed": 1, "selector": "learned", "nodes": 64, "branches": 1, "hits": 0, "misses": 1, "hit_rate": 0.0}
+{"family": "erdos_renyi", "n": 12, "params": {"p": 0.3}, "seed": 1, "selector": "mlp", "nodes": 60, "branches": 1, "hits": 0, "misses": 1, "hit_rate": 0.0}
+{"family": "erdos_renyi", "n": 12, "params": {"p": 0.5}, "seed": 1, "selector": "min_degree_sum", "nodes": 4168, "branches": 46, "hits": 28, "misses": 46, "hit_rate": 0.3783783783783784}
+{"family": "erdos_renyi", "n": 12, "params": {"p": 0.5}, "seed": 1, "selector": "max_degree_sum", "nodes": 22027, "branches": 1336, "hits": 805, "misses": 1336, "hit_rate": 0.37599252685660906}
+{"family": "erdos_renyi", "n": 12, "params": {"p": 0.5}, "seed": 1, "selector": "learned", "nodes": 1016, "branches": 15, "hits": 0, "misses": 15, "hit_rate": 0.0}
+{"family": "erdos_renyi", "n": 12, "params": {"p": 0.5}, "seed": 1, "selector": "mlp", "nodes": 565, "branches": 14, "hits": 1, "misses": 14, "hit_rate": 0.06666666666666667}
+{"family": "random_regular", "n": 10, "params": {"d": 3}, "seed": 1, "selector": "min_degree_sum", "nodes": 72, "branches": 8, "hits": 4, "misses": 8, "hit_rate": 0.3333333333333333}
+{"family": "random_regular", "n": 10, "params": {"d": 3}, "seed": 1, "selector": "max_degree_sum", "nodes": 89, "branches": 9, "hits": 0, "misses": 9, "hit_rate": 0.0}
+{"family": "random_regular", "n": 10, "params": {"d": 3}, "seed": 1, "selector": "learned", "nodes": 58, "branches": 5, "hits": 0, "misses": 5, "hit_rate": 0.0}
+{"family": "random_regular", "n": 10, "params": {"d": 3}, "seed": 1, "selector": "mlp", "nodes": 76, "branches": 7, "hits": 0, "misses": 7, "hit_rate": 0.0}
+{"family": "random_regular", "n": 10, "params": {"d": 3}, "seed": 2, "selector": "min_degree_sum", "nodes": 178, "branches": 13, "hits": 2, "misses": 13, "hit_rate": 0.13333333333333333}
+{"family": "random_regular", "n": 10, "params": {"d": 3}, "seed": 2, "selector": "max_degree_sum", "nodes": 212, "branches": 22, "hits": 6, "misses": 22, "hit_rate": 0.21428571428571427}
+{"family": "random_regular", "n": 10, "params": {"d": 3}, "seed": 2, "selector": "learned", "nodes": 139, "branches": 10, "hits": 3, "misses": 10, "hit_rate": 0.23076923076923078}
+{"family": "random_regular", "n": 10, "params": {"d": 3}, "seed": 2, "selector": "mlp", "nodes": 129, "branches": 11, "hits": 0, "misses": 11, "hit_rate": 0.0}
+{"family": "random_regular", "n": 12, "params": {"d": 3}, "seed": 1, "selector": "min_degree_sum", "nodes": 264, "branches": 9, "hits": 3, "misses": 9, "hit_rate": 0.25}
+{"family": "random_regular", "n": 12, "params": {"d": 3}, "seed": 1, "selector": "max_degree_sum", "nodes": 113, "branches": 21, "hits": 5, "misses": 21, "hit_rate": 0.19230769230769232}
+{"family": "random_regular", "n": 12, "params": {"d": 3}, "seed": 1, "selector": "learned", "nodes": 276, "branches": 12, "hits": 2, "misses": 12, "hit_rate": 0.14285714285714285}
+{"family": "random_regular", "n": 12, "params": {"d": 3}, "seed": 1, "selector": "mlp", "nodes": 113, "branches": 14, "hits": 1, "misses": 14, "hit_rate": 0.06666666666666667}

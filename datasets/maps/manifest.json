@@ -1,0 +1,47 @@
+{
+  "version": "maps-v1",
+  "budget": {
+    "branch_cap": 50000,
+    "wall_s_cap": 60.0,
+    "use_cache": true
+  },
+  "oracle_n_max": 6,
+  "engine_version": "0.1.0",
+  "engine_commit": "edcc2891b64ecffee099953826feecf91924f322",
+  "generator": "chromatic_rl.maps_geo",
+  "n_instances": 216,
+  "counts": {
+    "map_world": 2,
+    "map_country": 214
+  },
+  "tier_counts": {
+    "map": 200,
+    "map_uncertified": 16
+  },
+  "extra": {
+    "eps": 100.0,
+    "eps_unit": "metres",
+    "data_source": "Natural Earth 10m admin-0 / 10m admin-1",
+    "excluded": [
+      "map_country:AZ(n=78>max_n)",
+      "map_country:DZ(over_budget)",
+      "map_country:FR(n=101>max_n)",
+      "map_country:GB(n=232>max_n)",
+      "map_country:IT(n=110>max_n)",
+      "map_country:LV(n=119>max_n)",
+      "map_country:MK(n=84>max_n)",
+      "map_country:MT(n=68>max_n)",
+      "map_country:PH(n=118>max_n)",
+      "map_country:RO(over_budget)",
+      "map_country:RU(n=86>max_n)",
+      "map_country:SI(n=193>max_n)",
+      "map_country:TH(n=77>max_n)",
+      "map_country:TR(n=81>max_n)",
+      "map_country:UG(n=112>max_n)",
+      "map_country:VN(n=63>max_n)"
+    ],
+    "max_n": 55,
+    "pipeline": "stable-id-keys",
+    "adjacency": "geodesic shared-border length (WGS84) > eps metres; one vertex per unit; multipart dissolved"
+  }
+}

@@ -1,0 +1,835 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Chromatic reduction visualizer</title>
+<style>
+  :root {
+    --bg: #ffffff; --fg: #111827; --muted: #6b7280; --panel: #f8f9fb;
+    --accent: #d62728;   /* chosen edge */
+    /* node-kind categorical palette (dataviz skill, references/palette.md,
+       validated: node -e '...' worst adjacent CVD deltaE 24.2, light-mode) */
+    --c-branch: #2a78d6; --c-clique: #008300; --c-join: #e87ba4;
+    --c-comp: #4a3aa7;   --c-base: #eda100;  --c-cache: #eb6834;
+    --c-disc: #1baf7a;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 13px/1.45 system-ui, sans-serif; color: var(--fg);
+         background: var(--bg); display: flex; flex-direction: column; height: 100vh; }
+  #topbar { padding: 8px 14px; border-bottom: 1px solid #e5e7eb; display: flex;
+            gap: 16px; align-items: baseline; flex-wrap: wrap; }
+  #topbar h1 { font-size: 14px; margin: 0; font-weight: 600; letter-spacing: .01em; }
+  #topbar .stat { color: var(--muted); }
+  #topbar .poly { font-size: 13px; overflow: auto; max-width: 40vw; max-height: 4.5em;
+                  overscroll-behavior: contain; }
+  #body { flex: 1; display: flex; min-height: 0; }
+  #rail { width: 340px; flex: none; border-right: 1px solid #e5e7eb; overflow-y: auto;
+          padding: 10px 12px; background: #fafafa; }
+  #tabbar { display: flex; gap: 4px; margin-bottom: 10px; }
+  .tab { flex: 1; padding: 6px 8px; border: 1px solid #e5e7eb; background: #fff;
+         border-radius: 6px; cursor: pointer; color: var(--muted); }
+  .tab.active { color: var(--fg); border-color: var(--c-branch); font-weight: 600; }
+  .controls { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin: 8px 0; }
+  .hint { color: var(--muted); font-size: 12px; margin: 4px 0; }
+  #runbar { border-top: 1px solid #e5e7eb; margin-top: 12px; padding-top: 10px; }
+  #treepane { flex: 3; min-width: 0; border-right: 1px solid #e5e7eb; position: relative; }
+  #treepane svg { width: 100%; height: 100%; cursor: grab; }
+  #editor-canvas, #up-preview { cursor: grab; }
+  #editor-canvas:active, #up-preview:active { cursor: grabbing; }
+  .zoomroot line, .zoomroot circle, .zoomroot path { vector-effect: non-scaling-stroke; }
+  path.outline { fill: var(--c-branch); fill-opacity: .08; stroke: var(--c-comp);
+                 stroke-width: 1; stroke-opacity: .55; pointer-events: none; }
+  #inspector { flex: 2; min-width: 340px; overflow-y: auto; padding: 10px 14px;
+               background: var(--panel); }
+  .legend span { display: inline-flex; align-items: center; gap: 4px; margin-right: 10px; }
+  .dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+  button, select, input { font: inherit; }
+  .crumb { color: var(--muted); font-size: 12px; margin-bottom: 6px; word-break: break-all; }
+  table.stats td { padding: 1px 8px 1px 0; }
+  .err { color: var(--accent); font-weight: 600; }
+  #ed-status.busy { color: var(--muted); font-weight: 400; }
+  #inspector .glabel { font-size: 11px; color: var(--muted); margin: 6px 0 2px; }
+  #inspector .subgraph { background: #fff; border: 1px solid #ddd; border-radius: 4px; }
+  .derived-row { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 8px; }
+  .pane-child { cursor: pointer; border: 1px solid transparent; border-radius: 6px;
+                padding: 4px; transition: border-color .12s, background .12s; }
+  .pane-child:hover { border-color: var(--c-branch); background: #f0f6ff; }
+  .leaf-note { color: var(--muted); margin: 10px 0; }
+  #insp-back { margin-bottom: 6px; }
+</style>
+</head>
+<body>
+<script>/*__D3__*/</script>
+<script>window.VIZ_DOC = /*__VIZ_DOC__*/null;</script>
+
+<header id="topbar">
+  <h1>Reduction visualizer</h1>
+  <span id="meta-desc" class="stat"></span>
+  <span id="meta-stats" class="stat"></span>
+  <span id="meta-poly" class="poly"></span>
+  <button id="btn-heavy" title="expand the most expensive branch chain">Expand heaviest</button>
+  <span class="legend" id="legend"></span>
+</header>
+<div id="body">
+  <aside id="rail">
+    <nav id="tabbar">
+      <button class="tab active" data-tab="build">Build</button>
+      <button class="tab" data-tab="upload">Upload map</button>
+      <button class="tab" data-tab="gallery">Gallery</button>
+    </nav>
+    <section id="tab-build" class="tabpane">
+      <div class="controls">
+        <label><input type="radio" name="emode" id="mode-addv" value="addv" checked> add vertex</label>
+        <label><input type="radio" name="emode" value="adde"> add edge</label>
+        <label><input type="radio" name="emode" value="rm"> remove</label>
+        <label><input type="radio" name="emode" value="move"> move</label>
+      </div>
+      <p class="hint">Click to add a vertex; drag between two vertices to add an edge.</p>
+      <div class="controls">
+        <select id="gen-family">
+          <option>erdos_renyi</option><option>random_regular</option><option>grid</option>
+          <option>path</option><option>cycle</option><option>complete</option>
+          <option>random_tree</option>
+        </select>
+        n <input id="gen-n" type="number" value="10" style="width:4em">
+        p <input id="gen-p" type="number" value="0.3" step="0.05" style="width:4.5em">
+        seed <input id="gen-seed" type="number" value="1" style="width:4em">
+        <button id="btn-generate">Load</button>
+      </div>
+      <div class="controls">
+        <select id="inst-select" style="display:none"></select>
+        <button id="btn-instance" style="display:none">Load instance</button>
+      </div>
+      <svg id="editor-canvas" width="100%" height="300"
+           style="border:1px solid #ddd;background:#fff"></svg>
+      <label class="hint"><input type="checkbox" id="build-original" disabled> See original</label>
+    </section>
+    <section id="tab-upload" class="tabpane" style="display:none">
+      <p class="hint">Upload a map image; it is segmented into regions and their adjacency graph.</p>
+      <input type="file" id="up-file" accept="image/*">
+      <div class="controls">
+        <label>style
+          <select id="up-style">
+            <option>auto</option><option>filled</option><option>outline</option>
+          </select>
+        </label>
+      </div>
+      <div class="controls">min area
+        <input id="up-minarea" type="range" min="0" max="0.05" step="0.001" value="0.005">
+        <span id="up-minarea-v" class="hint">0.005</span>
+      </div>
+      <div class="controls">sensitivity
+        <input id="up-sens" type="range" min="0" max="0.5" step="0.01" value="0">
+        <span id="up-sens-v" class="hint">0</span>
+      </div>
+      <svg id="up-preview" width="100%" height="240"
+           style="border:1px solid #ddd;background:#fff"></svg>
+      <label class="hint"><input type="checkbox" id="up-original" disabled> See original</label>
+      <div class="controls">
+        <button id="up-segment">Segment</button>
+        <button id="up-use" disabled>Use this graph</button>
+        <span id="up-status" class="err"></span>
+      </div>
+    </section>
+    <section id="tab-gallery" class="tabpane" style="display:none">
+      <p class="hint">Load a world / country map graph and explore its reduction on
+        its real geographic layout.</p>
+      <select id="gal-select" style="width:100%"></select>
+      <div class="controls">
+        <button id="gal-load" disabled>Load map</button>
+        <span id="gal-status" class="hint"></span>
+      </div>
+    </section>
+    <div id="runbar" class="controls">
+      <select id="sel-selector">
+        <option>none</option><option>min_degree_sum</option><option>max_degree_sum</option>
+        <option>learned</option><option>mlp</option>
+      </select>
+      <label><input type="checkbox" id="opt-cache" checked> cache</label>
+      <label><input type="checkbox" id="opt-scores"> scores</label>
+      <label title="compute time limit (max 600 s)">timeout
+        <input type="number" id="opt-timeout" min="1" max="600" step="1" value="60" style="width: 4em;"> s</label>
+      <button id="btn-compute"><b>Compute</b></button>
+      <button id="btn-freeze">Download run</button>
+      <span id="ed-status" class="err"></span>
+    </div>
+  </aside>
+  <div id="treepane"><svg id="tree"></svg></div>
+  <div id="inspector"><em>Compute a graph, then click a step to explore it.</em></div>
+</div>
+
+<script>
+"use strict";
+const KIND_COLOR = {
+  branch: cssVar("--c-branch"), clique_sep: cssVar("--c-clique"),
+  join: cssVar("--c-join"), complement_sep: cssVar("--c-comp"),
+  base_empty: cssVar("--c-base"), base_tree: cssVar("--c-base"),
+  base_complete: cssVar("--c-base"), base_cycle: cssVar("--c-base"),
+  base_wheel: cssVar("--c-base"), cache_hit: cssVar("--c-cache"),
+  disconnected: cssVar("--c-disc"),
+};
+const VIA_LABEL = { delete: "−e", contract: "/e", insert: "+f",
+                    piece: "piece", ie_piece: "IE", root: "" };
+function cssVar(n) { return getComputedStyle(document.documentElement).getPropertyValue(n).trim(); }
+
+let DOC = window.VIZ_DOC;
+let collapsed = new Set();
+let selected = null;
+
+function byId() { const m = new Map(); DOC.nodes.forEach(n => m.set(n.id, n)); return m; }
+let NODE = byId();
+let CHILDREN = new Map();
+function reindex() {
+  NODE = byId(); CHILDREN = new Map();
+  DOC.nodes.forEach(n => CHILDREN.set(n.id, []));
+  DOC.nodes.forEach(n => { if (n.parent !== -1) CHILDREN.get(n.parent).push(n.id); });
+}
+
+function initCollapse() {
+  collapsed = new Set();
+  if (DOC.nodes.length > 2000)
+    DOC.nodes.forEach(n => { if (n.depth >= 3 && CHILDREN.get(n.id).length) collapsed.add(n.id); });
+}
+
+function renderHeader() {
+  const m = DOC.meta;
+  document.getElementById("meta-desc").textContent =
+    m.input.desc ? `${m.input.desc} — ${m.selector}${m.use_cache ? " (cache)" : ""}` : "";
+  const s = m.stats;
+  document.getElementById("meta-stats").textContent = DOC.nodes.length
+    ? `branches ${s.branches} · nodes ${s.nodes} · hits ${s.hits}` : "";
+  document.getElementById("meta-poly").innerHTML =
+    m.poly && m.poly.html ? "χ = " + m.poly.html : "";
+  const lg = document.getElementById("legend");
+  lg.innerHTML = "";
+  const shown = new Set(DOC.nodes.map(n => n.kind));
+  const names = { branch: "branch", clique_sep: "clique-sep", join: "join",
+                  complement_sep: "compl-sep", cache_hit: "cache hit",
+                  disconnected: "disconn", base_tree: "base case" };
+  for (const [k, label] of Object.entries(names)) {
+    if (![...shown].some(x => x === k || (label === "base case" && x.startsWith("base_")))) continue;
+    lg.insertAdjacentHTML("beforeend",
+      `<span><i class="dot" style="background:${KIND_COLOR[k]}"></i>${label}</span>`);
+  }
+}
+
+function hierarchy() {
+  function make(id) {
+    const n = NODE.get(id);
+    const kids = collapsed.has(id) ? [] : CHILDREN.get(id).map(make);
+    return { data: n, children: kids.length ? kids : undefined };
+  }
+  return d3.hierarchy(make(0));
+}
+
+let zoomG = null;
+let zoomBehavior = null;
+let zoomTransform = null;          // set to the initial view on first layout
+let treeNodeSel = null;            // cached <g.node> selection for cheap re-highlight
+let editorLoad = null;             // set by initEditor; used by the Upload tab
+let editorSetOutlines = null;      // set by initEditor; used by the Gallery tab
+
+function ensureZoom(svg) {
+  if (zoomBehavior) return;
+  zoomBehavior = d3.zoom().scaleExtent([0.05, 4])
+    .on("zoom", ev => { zoomTransform = ev.transform; zoomG.attr("transform", ev.transform); });
+}
+
+// Structural (re)layout: rebuilds nodes/links. Preserves the user's pan/zoom.
+function relayoutTree() {
+  const svg = d3.select("#tree");
+  svg.selectAll("*").remove();
+  treeNodeSel = null;
+  if (!DOC.nodes.length) return;
+  const root = hierarchy();
+  d3.tree().nodeSize([16, 110])(root);
+  zoomG = svg.append("g");
+  ensureZoom(svg);
+  svg.call(zoomBehavior);
+  if (zoomTransform === null) zoomTransform = d3.zoomIdentity.translate(60, 20);
+  svg.call(zoomBehavior.transform, zoomTransform);   // reapply stored view — no jump
+  zoomG.selectAll("path.link").data(root.links()).join("path")
+    .attr("class", "link").attr("fill", "none").attr("stroke", "#ccc")
+    .attr("d", d3.linkHorizontal().x(d => d.y).y(d => d.x));
+  const node = zoomG.selectAll("g.node").data(root.descendants()).join("g")
+    .attr("class", "node")
+    .attr("transform", d => `translate(${d.y},${d.x})`)
+    .style("cursor", "pointer")
+    .on("click", (ev, d) => select(d.data.data.id))
+    .on("dblclick", (ev, d) => { toggle(d.data.data.id); ev.stopPropagation(); });
+  node.append("circle").attr("class", "kind")
+    .attr("r", d => 3 + 2.2 * Math.log1p(d.data.data.subtree_branches))
+    .attr("fill", d => KIND_COLOR[d.data.data.kind] || "#999")
+    .attr("stroke-width", 2);
+  node.append("text").attr("dy", -8).attr("text-anchor", "middle")
+    .attr("font-size", 9).attr("fill", "#666")
+    .text(d => VIA_LABEL[d.data.data.via] || "");
+  node.filter(d => collapsed.has(d.data.data.id))
+    .append("text").attr("dx", 8).attr("dy", 4).attr("font-size", 9)
+    .attr("fill", "#333")
+    .text(d => `+${countDesc(d.data.data.id)} (${d.data.data.subtree_branches} br)`);
+  treeNodeSel = node;
+  paintSelection();
+}
+
+// Cheap highlight-only update: no relayout, never touches the zoom transform.
+function paintSelection() {
+  if (!treeNodeSel) return;
+  treeNodeSel.select("circle.kind")
+    .attr("stroke", d => d.data.data.id === selected ? "#000" : "none");
+}
+function countDesc(id) {
+  let c = 0; const stack = [...CHILDREN.get(id)];
+  while (stack.length) { const x = stack.pop(); c++; stack.push(...CHILDREN.get(x)); }
+  return c;
+}
+function toggle(id) {
+  if (collapsed.has(id)) collapsed.delete(id); else if (CHILDREN.get(id).length) collapsed.add(id);
+  relayoutTree();
+}
+function expandHeaviest() {
+  let id = 0;
+  while (true) {
+    collapsed.delete(id);
+    const kids = CHILDREN.get(id);
+    if (!kids.length) break;
+    id = kids.reduce((a, b) =>
+      NODE.get(a).subtree_branches >= NODE.get(b).subtree_branches ? a : b);
+  }
+  relayoutTree(); select(id);
+}
+
+function select(id) {
+  const n = NODE.get(id);
+  // Uncollapse any collapsed ancestors so this node is actually rendered in the tree.
+  let changed = false;
+  for (let c = n; c && c.parent !== -1; c = NODE.get(c.parent)) {
+    if (collapsed.has(c.parent)) { collapsed.delete(c.parent); changed = true; }
+  }
+  selected = id;
+  if (changed) relayoutTree(); else paintSelection();   // relayoutTree preserves zoom (A2)
+  renderInspector(id);
+}
+
+function nodePositions(n, W, H, pad) {
+  // stable positions: centroid of the root positions of each vertex's identity set
+  W = W || 300; H = H || 260; pad = pad === undefined ? 18 : pad;
+  if (n.verts) {
+    return n.verts.map(set => {
+      let x = 0, y = 0;
+      set.forEach(v => { x += DOC.layout[v][0]; y += DOC.layout[v][1]; });
+      return [pad + (W - 2 * pad) * (x / set.length),
+              pad + (H - 2 * pad) * (y / set.length)];
+    });
+  }
+  // synthetic (ie_piece subtree): circular layout
+  return d3.range(n.n).map(i => [
+    W / 2 + (W / 2 - pad) * Math.cos(2 * Math.PI * i / n.n),
+    H / 2 + (H / 2 - pad) * Math.sin(2 * Math.PI * i / n.n)]);
+}
+
+// Render one node's subgraph to an <svg> string. opts: {w,h, chosen, scores, sep}.
+function drawGraph(n, opts) {
+  const w = opts.w || 300, h = opts.h || 260, pad = 18;
+  const pos = nodePositions(n, w, h, pad);
+  const sepSet = new Set(opts.sep && n.sep ? n.sep : []);
+  const chosenKey = (opts.chosen && n.chosen) ? edgeKey(n.chosen[0], n.chosen[1]) : null;
+  let scoreScale = null;
+  if (opts.scores && n.scores) {
+    const ext = d3.extent(n.scores);
+    scoreScale = d3.scaleSequential(d3.interpolateBlues)
+      .domain([ext[0] - 1e-12, ext[1] + 1e-12]);
+  }
+  let svg = `<svg width="${w}" height="${h}" class="subgraph">`;
+  n.edges.forEach((e, i) => {
+    const k = edgeKey(e[0], e[1]);
+    const isChosen = k === chosenKey;
+    const col = isChosen ? cssVar("--accent")
+      : (scoreScale ? scoreScale(n.scores[i]) : "#9aa0a6");
+    svg += `<line x1="${pos[e[0]][0]}" y1="${pos[e[0]][1]}" x2="${pos[e[1]][0]}"`
+      + ` y2="${pos[e[1]][1]}" stroke="${col}" stroke-width="${isChosen ? 3.5 : 1.6}">`
+      + `<title>(${e[0]},${e[1]})${n.scores ? " score " + n.scores[i].toFixed(4) : ""}`
+      + `</title></line>`;
+  });
+  pos.forEach((p, i) => {
+    const label = n.verts
+      ? (n.verts[i].length > 1 ? "{" + n.verts[i].join(",") + "}" : String(n.verts[i][0]))
+      : String(i);
+    const r = n.verts && n.verts[i].length > 1 ? 9 : 7;
+    const ring = sepSet.has(i)
+      ? `stroke="${cssVar("--c-clique")}" stroke-width="3"` : `stroke="#333"`;
+    svg += `<circle cx="${p[0]}" cy="${p[1]}" r="${r}" fill="#fff" ${ring}></circle>`
+      + `<text x="${p[0]}" y="${p[1]}" dy="3" text-anchor="middle" font-size="8">${label}</text>`;
+  });
+  return svg + "</svg>";
+}
+
+function derivedLabel(c, i) {
+  const k = (i || 0) + 1;
+  return ({ delete: "−e   G−e", contract: "/e   G/e", insert: "+f   G+f",
+            piece: "piece " + k, ie_piece: "IE piece " + k })[c.via] || c.via;
+}
+
+function renderInspector(id) {
+  const n = NODE.get(id);
+  const el = document.getElementById("inspector");
+  const crumbs = [];
+  for (let c = n; c; c = c.parent === -1 ? null : NODE.get(c.parent))
+    crumbs.unshift(`${c.id}${c.via !== "root" ? ":" + (VIA_LABEL[c.via] || c.via) : ""}`);
+
+  const kids = (CHILDREN.get(id) || []).map(cid => NODE.get(cid));
+  const current = `<div class="pane-current">
+      <div class="glabel">this graph${n.via !== "root" ? " · " + (VIA_LABEL[n.via] || n.via) : ""}</div>
+      ${drawGraph(n, { w: 320, h: 280, chosen: true, scores: true, sep: true })}
+    </div>`;
+
+  let derived = "";
+  if (kids.length) {
+    const cards = kids.map((k, i) =>
+      `<div class="pane-child" data-id="${k.id}">
+         <div class="glabel">${derivedLabel(k, i)}</div>
+         ${drawGraph(k, { w: 220, h: 190, chosen: false, scores: false, sep: false })}
+       </div>`).join("");
+    derived = `<div class="derived-row">${cards}</div>`;
+  } else {
+    derived = `<div class="leaf-note">${n.kind.startsWith("base_")
+      ? "base case (" + n.kind.slice(5) + ") — no further reduction"
+      : (n.kind === "cache_hit" ? "cache hit — subtree already computed"
+         : "leaf — no derived graphs")}</div>`;
+  }
+
+  const rows = [
+    ["kind", n.kind], ["via", n.via + (n.via_edge ? ` (${n.via_edge})` : "")],
+    ["n / m", `${n.n} / ${n.m}`], ["depth", n.depth],
+    ["subtree branches", n.subtree_branches],
+  ];
+  if (n.chosen) rows.push(["chosen edge", `(${n.chosen[0]}, ${n.chosen[1]})`]);
+  if (n.sep) rows.push(["separator", "{" + n.sep.join(", ") + "}"]);
+  if (n.pieces) rows.push(["pieces", n.pieces.map(p => "{" + p.join(",") + "}").join(" ")]);
+  if (n.via === "ie_piece")
+    rows.push(["note", "synthetic inclusion–exclusion piece — vertex identity not tracked"]);
+
+  el.innerHTML =
+    `<div class="crumb">${crumbs.join(" → ")}</div>` +
+    (n.parent !== -1 ? `<button id="insp-back">↑ parent</button>` : "") +
+    current + derived +
+    `<table class="stats">` +
+    rows.map(([k, v]) => `<tr><td>${k}</td><td><b>${v}</b></td></tr>`).join("") +
+    `</table>`;
+
+  el.querySelectorAll(".pane-child").forEach(elc =>
+    elc.addEventListener("click", () => select(+elc.getAttribute("data-id"))));
+  const back = document.getElementById("insp-back");
+  if (back) back.addEventListener("click", () => select(n.parent));
+}
+function edgeKey(u, v) { return u < v ? u + "," + v : v + "," + u; }
+
+function attachZoom(svgSel, opts) {
+  opts = opts || {};
+  const svg = svgSel;
+  let g = svg.select("g.zoomroot");
+  if (g.empty()) g = svg.append("g").attr("class", "zoomroot");
+  let transform = d3.zoomIdentity;
+  const zoom = d3.zoom().scaleExtent([0.25, 8])
+    .filter(ev => opts.panEmptyOnly
+      ? (ev.type === "wheel" || ev.target === svg.node())
+      : (!ev.ctrlKey && !ev.button))
+    .on("zoom", ev => {
+      transform = ev.transform;
+      g.attr("transform", ev.transform);
+      if (opts.onZoom) opts.onZoom(ev.transform);
+    });
+  svg.call(zoom);
+  if (opts.panEmptyOnly) svg.on("dblclick.zoom", null);
+  return {
+    g,
+    current: () => transform,
+    reset() { transform = d3.zoomIdentity; svg.call(zoom.transform, d3.zoomIdentity); },
+    // Confine pan/zoom to the [0,0]-[w,h] world rectangle (the original canvas square).
+    setBounds(w, h) {
+      if (w > 0 && h > 0)
+        zoom.extent([[0, 0], [w, h]]).translateExtent([[0, 0], [w, h]]);
+    },
+  };
+}
+
+// Keep marks a constant on-screen size under zoom: counter-scale radius/font by 1/k.
+// (Stroke widths are held constant via CSS vector-effect: non-scaling-stroke.)
+function rescaleMarks(gSel, k) {
+  gSel.selectAll("circle[data-r]").attr("r", function () {
+    return (+this.getAttribute("data-r")) / k;
+  });
+  gSel.selectAll("text[data-fs]").attr("font-size", function () {
+    return (+this.getAttribute("data-fs")) / k;
+  });
+}
+
+// Draw/refresh the map-photo backdrop as the FIRST child of a zoom group `g`.
+// Stretched to the padded position rect so region centroids overlay exactly.
+// No data-r/data-fs => rescaleMarks leaves it alone (it scales with the world).
+function setBackdrop(g, dataURL, on, W, H, pad) {
+  g.selectAll("image.backdrop").remove();
+  if (!on || !dataURL) return;
+  g.insert("image", ":first-child").attr("class", "backdrop")
+    .attr("href", dataURL)
+    .attr("x", pad).attr("y", pad)
+    .attr("width", Math.max(0, W - 2 * pad)).attr("height", Math.max(0, H - 2 * pad))
+    .attr("preserveAspectRatio", "none").attr("opacity", 0.7)
+    .attr("pointer-events", "none");
+}
+
+// Draw/refresh region-border outlines (Gallery "see original") as FIRST children
+// of the zoom group `g`. `polygons[v]` is a list of rings of normalized [x,y];
+// mapped to the padded position rect exactly like the vertices, so borders
+// overlay the centroids they were normalized against.
+function setOutlines(g, polygons, on, W, H, pad) {
+  g.selectAll("path.outline").remove();
+  if (!on || !polygons || !polygons.length) return;
+  const sx = x => pad + (W - 2 * pad) * x;
+  const sy = y => pad + (H - 2 * pad) * y;
+  polygons.forEach(rings => (rings || []).forEach(ring => {
+    if (!ring.length) return;
+    const d = ring.map((p, i) => (i ? "L" : "M") + sx(p[0]) + " " + sy(p[1])).join(" ") + " Z";
+    g.insert("path", ":first-child").attr("class", "outline").attr("d", d);
+  }));
+}
+
+function initTabs() {
+  const panes = { build: "tab-build", upload: "tab-upload", gallery: "tab-gallery" };
+  document.querySelectorAll(".tab").forEach(btn =>
+    btn.addEventListener("click", () => {
+      const t = btn.getAttribute("data-tab");
+      document.querySelectorAll(".tab").forEach(b =>
+        b.classList.toggle("active", b === btn));
+      Object.entries(panes).forEach(([k, id]) =>
+        document.getElementById(id).style.display = k === t ? "block" : "none");
+    }));
+}
+
+function initUpload() {
+  const $ = id => document.getElementById(id);
+  const pz = attachZoom(d3.select("#up-preview"), { onZoom: t => rescaleMarks(pz.g, t.k) });
+  let imgB64 = null, imgDataURL = null, lastMap = null;
+  const status = m => { $("up-status").textContent = m || ""; };
+  const bindSlider = (s, v) =>
+    $(s).addEventListener("input", () => { $(v).textContent = $(s).value; });
+  bindSlider("up-minarea", "up-minarea-v");
+  bindSlider("up-sens", "up-sens-v");
+  $("up-original").addEventListener("change", () => { if (lastMap) drawPreview(lastMap); });
+
+  $("up-file").addEventListener("change", ev => {
+    const f = ev.target.files[0];
+    if (!f) return;
+    const r = new FileReader();
+    r.onload = () => {
+      imgDataURL = r.result;                       // full data URL (keep for backdrop)
+      imgB64 = r.result.split(",")[1];             // base64 payload for /segment
+      $("up-original").disabled = false;
+      status("image loaded — click Segment");
+    };
+    r.readAsDataURL(f);
+  });
+
+  function drawPreview(m) {
+    pz.reset();
+    const svg = pz.g;
+    svg.selectAll("*").remove();
+    const box = $("up-preview").getBoundingClientRect();
+    const W = box.width || 300, H = 240, pad = 14;
+    const P = m.positions.map(p => [pad + (W - 2 * pad) * p[0], pad + (H - 2 * pad) * p[1]]);
+    m.edges.forEach(e => svg.append("line")
+      .attr("x1", P[e[0]][0]).attr("y1", P[e[0]][1])
+      .attr("x2", P[e[1]][0]).attr("y2", P[e[1]][1])
+      .attr("stroke", "#888").attr("stroke-width", 1.5));
+    m.regions.forEach((rg, i) => svg.append("circle")
+      .attr("cx", P[i][0]).attr("cy", P[i][1]).attr("r", 7).attr("data-r", 7)
+      .attr("fill", `rgb(${rg.rgb.join(",")})`).attr("stroke", "#333"));
+    pz.setBounds(W, H);
+    rescaleMarks(pz.g, pz.current().k);
+    setBackdrop(pz.g, imgDataURL, $("up-original").checked, W, H, pad);
+  }
+
+  $("up-segment").addEventListener("click", async () => {
+    if (!imgB64) return status("choose an image first");
+    status("segmenting…");
+    const body = { image: imgB64, style: $("up-style").value,
+      min_area_frac: parseFloat($("up-minarea").value),
+      sensitivity: parseFloat($("up-sens").value) };
+    let r;
+    try {
+      r = await (await fetch("/segment", { method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body) })).json();
+    } catch (e) { return status("segmentation request failed"); }
+    if (!r.ok) return status(r.error);
+    lastMap = r.mapgraph;
+    status(`${lastMap.n} regions · ${lastMap.edges.length} edges (${lastMap.detected_style})`);
+    drawPreview(lastMap);
+    $("up-use").disabled = false;
+  });
+
+  $("up-use").addEventListener("click", () => {
+    if (!lastMap) return;
+    // Show the Build tab BEFORE loading: canvasSize() reads the canvas's
+    // getBoundingClientRect, which is 0-width while the tab is display:none
+    // (falling back to 800px and pushing half the graph off-screen).
+    document.querySelector('.tab[data-tab="build"]').click();
+    if (editorLoad) editorLoad(lastMap.n, lastMap.edges, lastMap.positions, { image: imgDataURL });
+    status("loaded into Build — Compute when ready");
+  });
+}
+
+function initGallery() {
+  const $ = id => document.getElementById(id);
+  const sel = $("gal-select"), btn = $("gal-load"), status = m => { $("gal-status").textContent = m || ""; };
+  const byId = {};   // id -> map metadata, for the pre-selection warning
+  fetch("/maps").then(r => r.json()).then(d => {
+    const maps = (d && d.maps) || [];
+    if (!maps.length) { status("install the geo extra + build datasets/maps"); return; }
+    maps.forEach(m => {
+      byId[m.id] = m;
+      const name = m.family === "map_world" ? "world" : m.label;
+      const gran = m.granularity ? ` · ${m.granularity}` : "";        // Unit 7
+      const unc = m.tier === "map_uncertified" ? " · ⚠ uncertified" : "";  // Unit 8
+      sel.insertAdjacentHTML("beforeend",
+        `<option value="${m.id}">${name} · n=${m.n}${gran}${unc}</option>`);
+    });
+    btn.disabled = false;
+  }).catch(() => status("no maps dataset available"));
+  // Unit 8: warn BEFORE the user computes a large/uncertified map, naming the
+  // granularity and that it may exceed the timeout (adjustable in the Build tab).
+  sel.addEventListener("change", () => {
+    const m = byId[sel.value];
+    if (m && m.tier === "map_uncertified") {
+      const gran = m.granularity ? ` (${m.granularity})` : "";
+      status(`⚠ ${m.label}${gran} has ${m.n} regions and ships uncertified `
+             + `(${m.excluded_reason}); it may time out — raise the timeout in Build.`);
+    } else if (m && m.granularity) {
+      status(`${m.label}: ${m.granularity}`);
+    } else { status(""); }
+  });
+  btn.addEventListener("click", async () => {
+    status("loading…");
+    let r;
+    try { r = await (await fetch("/map?id=" + encodeURIComponent(sel.value))).json(); }
+    catch (e) { return status("load failed"); }
+    if (r.error) return status(r.error);
+    // Switch to Build BEFORE loading (canvasSize needs a visible canvas), mirroring Upload.
+    document.querySelector('.tab[data-tab="build"]').click();
+    if (editorLoad) editorLoad(r.n, r.edges, r.positions, { labels: r.labels });
+    status(`loaded ${r.n} regions — Compute when ready`);
+    // Fetch the real region borders in the background; when ready the "See
+    // original" toggle lights up and overlays them for visual verification.
+    if (r.has_original && editorSetOutlines) {
+      status(`loaded ${r.n} regions · fetching original map…`);
+      const id = sel.value;
+      try {
+        const g = await (await fetch("/mapgeo?id=" + encodeURIComponent(id))).json();
+        if (id !== sel.value) return;                 // a newer load superseded us
+        if (g.ok) { editorSetOutlines(g.polygons);
+                    status(`loaded ${r.n} regions — tick “See original” to overlay the map`); }
+        else { status(`loaded ${r.n} regions (original unavailable: ${g.error})`); }
+      } catch (e) { status(`loaded ${r.n} regions (original fetch failed)`); }
+    }
+  });
+}
+
+function boot() {
+  if (!DOC) DOC = { meta: { mode: "serve", input: {}, stats: {} }, layout: [], nodes: [] };
+  reindex();
+  initCollapse();
+  renderHeader();
+  relayoutTree();
+  if (DOC.nodes.length) select(0);
+  document.getElementById("btn-heavy").onclick = expandHeaviest;
+  if (DOC.meta.mode === "serve") { initEditor(); initTabs(); initUpload(); initGallery(); }   // defined in the editor block (Task 7)
+  if (DOC.meta.mode !== "serve") document.getElementById("rail").style.display = "none";
+}
+function initEditor() {
+  const svg = d3.select("#editor-canvas");
+  const ez = attachZoom(svg, {
+    panEmptyOnly: true,
+    onZoom: t => rescaleMarks(ez.g, t.k),
+  });
+  let G = { n: 0, pos: [], edges: [], image: null, labels: [], outlines: null };   // pos in pixels (untransformed canvas space)
+  let pendingEdge = null, dragging = null;
+
+  const mode = () => document.querySelector("input[name=emode]:checked").value;
+  const status = msg => { document.getElementById("ed-status").textContent = msg || ""; };
+
+  function redraw() {
+    ez.g.selectAll("*").remove();
+    G.edges.forEach((e, i) => {
+      ez.g.append("line")
+        .attr("x1", G.pos[e[0]][0]).attr("y1", G.pos[e[0]][1])
+        .attr("x2", G.pos[e[1]][0]).attr("y2", G.pos[e[1]][1])
+        .attr("stroke", "#555").attr("stroke-width", 2)
+        .style("cursor", "pointer")
+        .on("click", ev => {
+          if (mode() === "rm") { G.edges.splice(i, 1); redraw(); }
+          ev.stopPropagation();
+        });
+    });
+    G.pos.forEach((p, i) => {
+      const g = ez.g.append("g").style("cursor", "pointer");
+      g.append("circle").attr("cx", p[0]).attr("cy", p[1]).attr("r", 11).attr("data-r", 11)
+        .attr("fill", pendingEdge === i ? "#ffd" : "#fff").attr("stroke", "#333")
+        .attr("stroke-width", pendingEdge === i ? 3 : 1.5);
+      g.append("text").attr("x", p[0]).attr("y", p[1])
+        .attr("text-anchor", "middle").attr("dominant-baseline", "central")
+        .attr("font-size", 10).attr("data-fs", 10).text(i);
+      if (G.labels && G.labels[i] != null)
+        g.append("title").text(G.labels[i]);
+      g.on("click", ev => { vertexClick(i); ev.stopPropagation(); });
+      g.call(d3.drag()
+        .on("start", () => { if (mode() === "move") dragging = i; })
+        .on("drag", ev => {
+          if (dragging === i) {
+            const [W, H] = canvasSize();
+            let [x, y] = ez.current().invert(d3.pointer(ev.sourceEvent, svg.node()));
+            G.pos[i] = [Math.max(0, Math.min(W, x)), Math.max(0, Math.min(H, y))];
+            redraw();
+          }
+        })
+        .on("end", () => { dragging = null; }));
+    });
+    const [cw, ch] = canvasSize();
+    ez.setBounds(cw, ch);
+    rescaleMarks(ez.g, ez.current().k);
+    const orig = document.getElementById("build-original").checked;
+    setBackdrop(ez.g, G.image, orig, cw, ch, 24);
+    setOutlines(ez.g, G.outlines, orig, cw, ch, 24);
+  }
+
+  function vertexClick(i) {
+    if (mode() === "adde") {
+      if (pendingEdge === null) { pendingEdge = i; }
+      else if (pendingEdge === i) { pendingEdge = null; }
+      else {
+        const e = [Math.min(pendingEdge, i), Math.max(pendingEdge, i)];
+        if (!G.edges.some(x => x[0] === e[0] && x[1] === e[1])) G.edges.push(e);
+        pendingEdge = null;
+      }
+      redraw();
+    } else if (mode() === "rm") {
+      G.edges = G.edges.filter(e => e[0] !== i && e[1] !== i)
+        .map(e => e.map(v => v > i ? v - 1 : v));
+      G.pos.splice(i, 1); G.n--;
+      pendingEdge = null;
+      redraw();
+    }
+  }
+
+  svg.on("click", ev => {
+    if (mode() !== "addv") return;
+    const [W, H] = canvasSize();
+    const [x, y] = ez.current().invert(d3.pointer(ev, svg.node()));
+    if (x < 0 || y < 0 || x > W || y > H) return;   // outside the canvas square — ignore
+    G.pos.push([x, y]); G.n++;
+    redraw();
+  });
+
+  function canvasSize() {
+    const r = document.getElementById("editor-canvas").getBoundingClientRect();
+    return [r.width || 800, 300];
+  }
+  function loadGraph(n, edges, positions, opts) {
+    opts = opts || {};
+    const [W, H] = canvasSize();
+    const pad = 24;
+    const pos = (positions && positions.length === n)
+      ? positions.map(p => [pad + (W - 2 * pad) * p[0], pad + (H - 2 * pad) * p[1]])
+      : d3.range(n).map(i => [
+          W / 2 + (Math.min(W, H) / 2 - 30) * Math.cos(2 * Math.PI * i / n),
+          H / 2 + (Math.min(W, H) / 2 - 30) * Math.sin(2 * Math.PI * i / n)]);
+    G = { n, edges: edges.map(e => [...e]), pos,
+          image: opts.image || null, labels: opts.labels || [],
+          outlines: opts.outlines || null };
+    pendingEdge = null;
+    refreshOriginalToggle();
+    ez.setBounds(W, H);
+    ez.reset();
+    redraw();
+  }
+  function refreshOriginalToggle() {
+    const has = !!(G.image || (G.outlines && G.outlines.length));
+    document.getElementById("build-original").disabled = !has;
+    if (!has) document.getElementById("build-original").checked = false;
+  }
+  // Attach region-border outlines to the currently loaded graph (Gallery loads
+  // the vertices first, then fetches outlines asynchronously).
+  editorSetOutlines = polygons => {
+    G.outlines = polygons || null;
+    refreshOriginalToggle();
+    redraw();
+  };
+  editorLoad = loadGraph;
+  document.getElementById("build-original").addEventListener("change", redraw);
+
+  document.getElementById("btn-generate").onclick = async () => {
+    const f = document.getElementById("gen-family").value;
+    const q = new URLSearchParams({ family: f,
+      n: document.getElementById("gen-n").value,
+      p: document.getElementById("gen-p").value,
+      seed: document.getElementById("gen-seed").value,
+      rows: 3, cols: 4, d: 3 });
+    const r = await (await fetch("/generate?" + q)).json();
+    if (r.error) return status(r.error);
+    status(""); loadGraph(r.n, r.edges);
+  };
+
+  fetch("/instances").then(r => r.json()).then(d => {
+    if (!d.ids || !d.ids.length) return;
+    const sel = document.getElementById("inst-select");
+    d.ids.forEach(id => sel.insertAdjacentHTML("beforeend", `<option>${id}</option>`));
+    sel.style.display = "";
+    const btn = document.getElementById("btn-instance");
+    btn.style.display = "";
+    btn.onclick = async () => {
+      const r = await (await fetch("/instance?id=" + encodeURIComponent(sel.value))).json();
+      if (r.error) return status(r.error);
+      status(""); loadGraph(r.n, r.edges);
+    };
+  });
+
+  document.getElementById("btn-compute").onclick = async () => {
+    if (G.n === 0) return status("draw or load a graph first");
+    const [W, H] = canvasSize();
+    status("computing…"); document.getElementById("ed-status").className = "busy";
+    const body = {
+      n: G.n, edges: G.edges,
+      positions: G.pos.map(p => [p[0] / W, p[1] / H]),
+      selector: document.getElementById("sel-selector").value,
+      use_cache: document.getElementById("opt-cache").checked,
+      scores: document.getElementById("opt-scores").checked,
+      timeout: Number(document.getElementById("opt-timeout").value) || undefined,
+    };
+    const r = await (await fetch("/compute", { method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body) })).json();
+    if (!r.ok) { document.getElementById("ed-status").className = "err"; return status(r.error); }
+    document.getElementById("ed-status").className = "err";
+    status("");
+    DOC = r.doc;
+    reindex(); initCollapse(); renderHeader(); zoomTransform = null; relayoutTree(); select(0);
+  };
+
+  document.getElementById("btn-freeze").onclick = async () => {
+    if (!DOC.nodes.length) return status("nothing to download — compute first");
+    const r = await fetch("/freeze", { method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(DOC) });
+    const blob = await r.blob();
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "chromatic-run.html";
+    a.click();
+    URL.revokeObjectURL(a.href);
+  };
+
+  redraw();
+}
+boot();
+</script>
+</body>
+</html>
